@@ -22,16 +22,12 @@
 #ifndef __PANEL_RESET_H__
 #define __PANEL_RESET_H__
 
-#include <gtk/gtk.h>
+#include <glib.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif /* __cplusplus */
+G_BEGIN_DECLS
 
 void panel_reset(void);
 
-#ifdef __cplusplus
-}
-#endif /* __cplusplus */
+G_END_DECLS
 
 #endif /* !__PANEL_RESET_H__ */
