@@ -148,6 +148,7 @@ struct _ClockData {
         GWeatherSpeedUnit       speed_unit;
 
         /* Locations */
+        GWeatherLocation *world;
         GList *locations;
         GList *location_tiles;
 
@@ -2386,6 +2387,7 @@ fill_clock_applet (MatePanelApplet *applet)
         cd->fixed_height = -1;
 
         cd->applet = GTK_WIDGET (applet);
+        cd->world = gweather_location_get_world ();
 
         setup_gsettings (cd);
         load_gsettings (cd);
@@ -3134,10 +3136,8 @@ ensure_prefs_window_is_created (ClockData *cd)
 
         edit_ok_button = _clock_get_widget (cd, "edit-location-ok-button");
 
-        world = gweather_location_get_world ();
-
         location_box = _clock_get_widget (cd, "edit-location-name-box");
-        cd->location_entry = GWEATHER_LOCATION_ENTRY (gweather_location_entry_new (world));
+        cd->location_entry = GWEATHER_LOCATION_ENTRY (gweather_location_entry_new (cd->world));
         gtk_widget_show (GTK_WIDGET (cd->location_entry));
         gtk_container_add (GTK_CONTAINER (location_box), GTK_WIDGET (cd->location_entry));
         gtk_label_set_mnemonic_widget (GTK_LABEL (location_name_label),
@@ -3149,7 +3149,7 @@ ensure_prefs_window_is_created (ClockData *cd)
                           G_CALLBACK (location_name_changed), cd);
 
         zone_box = _clock_get_widget (cd, "edit-location-timezone-box");
-        cd->zone_combo = GWEATHER_TIMEZONE_MENU (gweather_timezone_menu_new (world));
+        cd->zone_combo = GWEATHER_TIMEZONE_MENU (gweather_timezone_menu_new (cd->world));
         gtk_widget_show (GTK_WIDGET (cd->zone_combo));
         gtk_container_add (GTK_CONTAINER (zone_box), GTK_WIDGET (cd->zone_combo));
         gtk_label_set_mnemonic_widget (GTK_LABEL (timezone_label),
@@ -3157,8 +3157,6 @@ ensure_prefs_window_is_created (ClockData *cd)
 
         g_signal_connect (G_OBJECT (cd->zone_combo), "notify::tzid",
                           G_CALLBACK (location_timezone_changed), cd);
-
-        gweather_location_unref (world);
 
         g_signal_connect (G_OBJECT (edit_cancel_button), "clicked",
                           G_CALLBACK (edit_hide), cd);

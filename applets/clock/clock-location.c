@@ -708,7 +708,7 @@ setup_weather_updates (ClockLocation *loc)
 
         wl = gweather_location_new_detached (priv->city, priv->weather_code, priv->latitude, priv->longitude);
 
-        priv->weather_info = gweather_info_new (wl, GWEATHER_FORECAST_STATE);
+        priv->weather_info = gweather_info_new (wl, GWEATHER_FORECAST_LIST);
         gweather_info_set_enabled_providers (priv->weather_info, GWEATHER_PROVIDER_ALL); /* FIXME: select providers */
         g_signal_connect (priv->weather_info, "updated",
                           G_CALLBACK (weather_info_updated), loc);
