@@ -44,8 +44,7 @@ CLOCK_CPPFLAGS =						\
 	-DMATELOCALEDIR=\""$(prefix)/$(DATADIRNAME)/locale"\"	\
 	-DBUILDERDIR=\""$(uidir)"\"				\
 	-DCLOCK_MENU_UI_DIR=\""$(xmluidir)"\"			\
-	-DICONDIR=\""$(datadir)/mate-panel/pixmaps"\"		\
-	-DMATEWEATHER_I_KNOW_THIS_IS_UNSTABLE
+	-DICONDIR=\""$(datadir)/mate-panel/pixmaps"\"
 
 CLOCK_LDADD =						\
 	../../libmate-panel-applet/libmate-panel-applet-4.la	\

@@ -38,12 +38,12 @@ typedef struct {
         gfloat longitude;
 
         gchar *weather_code;
-        WeatherInfo *weather_info;
+        GWeatherInfo *weather_info;
         guint weather_timeout;
         guint weather_retry_time;
 
-        TempUnit temperature_unit;
-        SpeedUnit speed_unit;
+        GWeatherTemperatureUnit temperature_unit;
+        GWeatherSpeedUnit speed_unit;
 } ClockLocationPrivate;
 
 #define WEATHER_TIMEOUT_BASE 30
@@ -102,7 +102,9 @@ ClockLocation *
 clock_location_new (const gchar *name, const gchar *city,
                     const gchar *timezone,
                     gfloat latitude, gfloat longitude,
-                    const gchar *code, WeatherPrefs *prefs)
+                    const gchar *code,
+                    GWeatherTemperatureUnit temperature_unit,
+                    GWeatherSpeedUnit speed_unit)
 {
         ClockLocation *this;
         ClockLocationPrivate *priv;
@@ -123,10 +125,8 @@ clock_location_new (const gchar *name, const gchar *city,
 
         priv->weather_code = clock_location_get_valid_weather_code (code);
 
-        if (prefs) {
-                priv->temperature_unit = prefs->temperature_unit;
-                priv->speed_unit = prefs->speed_unit;
-        }
+        priv->temperature_unit = temperature_unit;
+        priv->speed_unit = speed_unit;
 
         setup_weather_updates (this);
 
@@ -198,8 +198,8 @@ clock_location_init (ClockLocation *this)
         g_signal_connect (monitor, "network-changed",
                           G_CALLBACK (network_changed), this);
 
-        priv->temperature_unit = TEMP_UNIT_CENTIGRADE;
-        priv->speed_unit = SPEED_UNIT_MS;
+        priv->temperature_unit = GWEATHER_TEMP_UNIT_CENTIGRADE;
+        priv->speed_unit = GWEATHER_SPEED_UNIT_MS;
 }
 
 static void
@@ -244,7 +244,7 @@ clock_location_finalize (GObject *g_obj)
         }
 
         if (priv->weather_info) {
-                weather_info_free (priv->weather_info);
+                g_object_unref (priv->weather_info);
                 priv->weather_info = NULL;
         }
 
@@ -626,7 +626,7 @@ clock_location_set_weather_code (ClockLocation *loc, const gchar *code)
         setup_weather_updates (loc);
 }
 
-WeatherInfo *
+GWeatherInfo *
 clock_location_get_weather_info (ClockLocation *loc)
 {
         ClockLocationPrivate *priv = PRIVATE (loc);
@@ -640,7 +640,7 @@ set_weather_update_timeout (ClockLocation *loc)
         ClockLocationPrivate *priv = PRIVATE (loc);
         guint timeout;
 
-        if (!weather_info_network_error (priv->weather_info)) {
+        if (!gweather_info_network_error (priv->weather_info)) {
                 /* The last update succeeded; set the next update to
                  * happen in half an hour, and reset the retry timer.
                  */
@@ -664,7 +664,7 @@ set_weather_update_timeout (ClockLocation *loc)
 }
 
 static void
-weather_info_updated (WeatherInfo *info, gpointer data)
+weather_info_updated (GWeatherInfo *info, gpointer data)
 {
         ClockLocation *loc = data;
         ClockLocationPrivate *priv = PRIVATE (loc);
@@ -679,71 +679,21 @@ update_weather_info (gpointer data)
 {
         ClockLocation *loc = (ClockLocation *) data;
         ClockLocationPrivate *priv = PRIVATE (loc);
-        WeatherPrefs prefs = {
-                FORECAST_STATE,
-                FALSE,
-                NULL,
-                TEMP_UNIT_CENTIGRADE,
-                SPEED_UNIT_MS,
-                PRESSURE_UNIT_MB,
-                DISTANCE_UNIT_KM
-        };
 
-        // set temperature and speed units only if different from
-        // invalid/default
-        if (priv->temperature_unit > TEMP_UNIT_DEFAULT)
-                prefs.temperature_unit = priv->temperature_unit;
-        if (priv->speed_unit > SPEED_UNIT_DEFAULT)
-                prefs.speed_unit = priv->speed_unit;
-
-        weather_info_abort (priv->weather_info);
-        weather_info_update (priv->weather_info,
-                             &prefs, weather_info_updated, loc);
+        gweather_info_abort (priv->weather_info);
+        gweather_info_update (priv->weather_info);
 
         return TRUE;
-}
-
-static gchar *
-rad2dms (gfloat lat, gfloat lon)
-{
-        gchar h, h2;
-        gfloat d, deg, min, d2, deg2, min2;
-
-        h = lat > 0 ? 'N' : 'S';
-        d = fabs (lat);
-        deg = floor (d);
-        min = floor (60 * (d - deg));
-        h2 = lon > 0 ? 'E' : 'W';
-        d2 = fabs (lon);
-        deg2 = floor (d2);
-        min2 = floor (60 * (d2 - deg2));
-        return g_strdup_printf ("%02d-%02d%c %02d-%02d%c",
-                                (int)deg, (int)min, h,
-                                (int)deg2, (int)min2, h2);
 }
 
 static void
 setup_weather_updates (ClockLocation *loc)
 {
         ClockLocationPrivate *priv = PRIVATE (loc);
-        WeatherLocation *wl;
-        WeatherPrefs prefs = {
-                FORECAST_STATE,
-                FALSE,
-                NULL,
-                TEMP_UNIT_CENTIGRADE,
-                SPEED_UNIT_MS,
-                PRESSURE_UNIT_MB,
-                DISTANCE_UNIT_KM
-        };
-
-        gchar *dms;
-
-        prefs.temperature_unit = priv->temperature_unit;
-        prefs.speed_unit = priv->speed_unit;
+        GWeatherLocation *wl;
 
         if (priv->weather_info) {
-                weather_info_free (priv->weather_info);
+                g_object_unref (priv->weather_info);
                 priv->weather_info = NULL;
         }
 
@@ -756,27 +706,27 @@ setup_weather_updates (ClockLocation *loc)
             strcmp (priv->weather_code, WEATHER_EMPTY_CODE) == 0)
                 return;
 
-        dms = rad2dms (priv->latitude, priv->longitude);
-        wl = weather_location_new (priv->city, priv->weather_code,
-                                   NULL, NULL, dms, NULL, NULL);
+        wl = gweather_location_new_detached (priv->city, priv->weather_code, priv->latitude, priv->longitude);
 
-        priv->weather_info =
-                weather_info_new (wl, &prefs, weather_info_updated, loc);
+        priv->weather_info = gweather_info_new (wl, GWEATHER_FORECAST_STATE);
+        gweather_info_set_enabled_providers (priv->weather_info, GWEATHER_PROVIDER_ALL); /* FIXME: select providers */
+        g_signal_connect (priv->weather_info, "updated",
+                          G_CALLBACK (weather_info_updated), loc);
 
         set_weather_update_timeout (loc);
 
-        weather_location_free (wl);
-        g_free (dms);
+        gweather_location_unref (wl);
 }
 
 void
 clock_location_set_weather_prefs (ClockLocation *loc,
-                                  WeatherPrefs *prefs)
+                                  GWeatherTemperatureUnit temperature_unit,
+                                  GWeatherSpeedUnit speed_unit)
 {
         ClockLocationPrivate *priv = PRIVATE (loc);
 
-        priv->temperature_unit = prefs->temperature_unit;
-        priv->speed_unit = prefs->speed_unit;
+        priv->temperature_unit = temperature_unit;
+        priv->speed_unit = speed_unit;
 
         update_weather_info (loc);
 }

@@ -4,7 +4,9 @@
 #include <time.h>
 #include <glib.h>
 #include <glib-object.h>
-#include <libmateweather/weather.h>
+
+#define GWEATHER_I_KNOW_THIS_IS_UNSTABLE
+#include <libgweather/gweather.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -26,7 +28,7 @@ typedef struct
 {
         GObjectClass g_object_class;
 
-        void (* weather_updated) (ClockLocation *location, WeatherInfo *info);
+        void (* weather_updated) (ClockLocation *location, GWeatherInfo *info);
 
         void (* set_current) (ClockLocation *location);
 } ClockLocationClass;
@@ -37,7 +39,8 @@ ClockLocation *clock_location_new (const gchar *name, const gchar *city,
                                    const gchar *timezone,
                                    gfloat latitude, gfloat longitude,
                                    const gchar *code,
-                                   WeatherPrefs *prefs);
+                                   GWeatherTemperatureUnit temperature_unit,
+                                   GWeatherSpeedUnit speed_unit);
 
 ClockLocation *clock_location_find_and_ref (GList       *locations,
                                             const gchar *name,
@@ -72,11 +75,12 @@ void clock_location_make_current (ClockLocation *loc,
                                   GDestroyNotify destroy);
 gboolean clock_location_is_current_timezone (ClockLocation *loc);
 
-const gchar *clock_location_get_weather_code (ClockLocation *loc);
-void         clock_location_set_weather_code (ClockLocation *loc, const gchar *code);
-WeatherInfo *clock_location_get_weather_info (ClockLocation *loc);
-void         clock_location_set_weather_prefs (ClockLocation *loc,
-                                               WeatherPrefs *weather_prefs);
+const gchar  *clock_location_get_weather_code (ClockLocation *loc);
+void          clock_location_set_weather_code (ClockLocation *loc, const gchar *code);
+GWeatherInfo *clock_location_get_weather_info (ClockLocation *loc);
+void          clock_location_set_weather_prefs (ClockLocation *loc,
+                                                GWeatherTemperatureUnit temperature_unit,
+                                                GWeatherSpeedUnit speed_unit);
 
 glong clock_location_get_offset (ClockLocation *loc);
 
